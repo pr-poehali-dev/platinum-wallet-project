@@ -36,15 +36,33 @@ const Index = () => {
   const [registerPin, setRegisterPin] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
 
-  const [users] = useState<User[]>([
+  const [users, setUsers] = useState<User[]>([
     { fullName: 'Иван Петров', pin: '1234', balance: 5000, role: 'student' },
     { fullName: 'Мария Сидорова', pin: '4321', balance: 3500, role: 'student' },
   ]);
 
   const [requests, setRequests] = useState<Request[]>([]);
+  const [bonusAmount, setBonusAmount] = useState('');
 
   const totalBalance = users.reduce((sum, user) => sum + user.balance, 0);
   const activeRequests = requests.filter(r => r.status === 'pending');
+
+  const handleGiveBonusToAll = () => {
+    const amount = parseInt(bonusAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: '❌ Ошибка', description: 'Введите корректную сумму', variant: 'destructive' });
+      return;
+    }
+    setUsers(prev => prev.map(user => ({
+      ...user,
+      balance: user.balance + amount
+    })));
+    setBonusAmount('');
+    toast({ 
+      title: '✅ Бонус начислен', 
+      description: `Всем участникам начислено +${amount.toLocaleString()}₽` 
+    });
+  };
 
   const handleLogin = () => {
     const user = users.find(u => u.fullName === loginFullName && u.pin === loginPin);
@@ -238,6 +256,30 @@ const Index = () => {
               </div>
             </Card>
           </div>
+
+          <Card className="glass p-6 mb-6">
+            <h2 className="text-xl font-heading font-bold mb-4">Начислить бонус всем участникам</h2>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Label htmlFor="bonus-amount">Сумма бонуса</Label>
+                <Input
+                  id="bonus-amount"
+                  type="number"
+                  placeholder="1000"
+                  value={bonusAmount}
+                  onChange={(e) => setBonusAmount(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <Button 
+                onClick={handleGiveBonusToAll}
+                className="gradient-primary"
+              >
+                <Icon name="Gift" className="mr-2" size={18} />
+                Начислить всем
+              </Button>
+            </div>
+          </Card>
 
           <Card className="glass p-6">
             <h2 className="text-xl font-heading font-bold mb-4">Заявки на обработку</h2>
