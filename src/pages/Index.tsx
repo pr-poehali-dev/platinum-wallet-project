@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,9 +43,20 @@ const Index = () => {
 
   const [requests, setRequests] = useState<Request[]>([]);
   const [bonusAmount, setBonusAmount] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
 
   const totalBalance = users.reduce((sum, user) => sum + user.balance, 0);
   const activeRequests = requests.filter(r => r.status === 'pending');
+
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'student') {
+      const updatedUser = users.find(u => u.fullName === currentUser.fullName);
+      if (updatedUser) {
+        setCurrentUser(updatedUser);
+      }
+    }
+  }, [users]);
 
   const handleGiveBonusToAll = () => {
     const amount = parseInt(bonusAmount);
@@ -83,6 +94,7 @@ const Index = () => {
         balance: 0,
         role: 'student'
       };
+      setUsers(prev => [...prev, newUser]);
       setCurrentUser(newUser);
       setIsLoggedIn(true);
       toast({ title: '✅ Регистрация успешна', description: 'Добро пожаловать!' });
@@ -105,6 +117,74 @@ const Index = () => {
     setCurrentUser(null);
     setIsLoggedIn(false);
     setCurrentTab('home');
+  };
+
+  const handleDepositRequest = () => {
+    const amount = parseInt(depositAmount);
+    if (!currentUser || isNaN(amount) || amount <= 0) {
+      toast({ title: '❌ Ошибка', description: 'Введите корректную сумму', variant: 'destructive' });
+      return;
+    }
+    const newRequest: Request = {
+      id: Date.now().toString(),
+      userName: currentUser.fullName,
+      type: 'deposit',
+      amount: amount,
+      status: 'pending'
+    };
+    setRequests(prev => [...prev, newRequest]);
+    setDepositAmount('');
+    toast({ title: '✅ Заявка создана', description: 'Ожидайте одобрения персонала' });
+  };
+
+  const handleWithdrawRequest = () => {
+    const amount = parseInt(withdrawAmount);
+    if (!currentUser || isNaN(amount) || amount <= 0) {
+      toast({ title: '❌ Ошибка', description: 'Введите корректную сумму', variant: 'destructive' });
+      return;
+    }
+    if (amount > currentUser.balance) {
+      toast({ title: '❌ Ошибка', description: 'Недостаточно средств', variant: 'destructive' });
+      return;
+    }
+    const newRequest: Request = {
+      id: Date.now().toString(),
+      userName: currentUser.fullName,
+      type: 'withdraw',
+      amount: amount,
+      status: 'pending'
+    };
+    setRequests(prev => [...prev, newRequest]);
+    setWithdrawAmount('');
+    toast({ title: '✅ Заявка создана', description: 'Ожидайте одобрения персонала' });
+  };
+
+  const handleApproveRequest = (requestId: string) => {
+    const request = requests.find(r => r.id === requestId);
+    if (!request) return;
+
+    setRequests(prev => prev.map(r => 
+      r.id === requestId ? { ...r, status: 'approved' as const } : r
+    ));
+
+    if (request.type === 'deposit') {
+      setUsers(prev => prev.map(u => 
+        u.fullName === request.userName ? { ...u, balance: u.balance + request.amount } : u
+      ));
+    } else {
+      setUsers(prev => prev.map(u => 
+        u.fullName === request.userName ? { ...u, balance: u.balance - request.amount } : u
+      ));
+    }
+
+    toast({ title: '✅ Заявка одобрена' });
+  };
+
+  const handleRejectRequest = (requestId: string) => {
+    setRequests(prev => prev.map(r => 
+      r.id === requestId ? { ...r, status: 'rejected' as const } : r
+    ));
+    toast({ title: '❌ Заявка отклонена' });
   };
 
   if (!isLoggedIn) {
@@ -299,24 +379,14 @@ const Index = () => {
                       <Button 
                         size="sm" 
                         className="bg-green-600 hover:bg-green-700"
-                        onClick={() => {
-                          setRequests(prev => prev.map(r => 
-                            r.id === request.id ? { ...r, status: 'approved' } : r
-                          ));
-                          toast({ title: '✅ Заявка одобрена' });
-                        }}
+                        onClick={() => handleApproveRequest(request.id)}
                       >
                         <Icon name="Check" size={16} />
                       </Button>
                       <Button 
                         size="sm" 
                         variant="destructive"
-                        onClick={() => {
-                          setRequests(prev => prev.map(r => 
-                            r.id === request.id ? { ...r, status: 'rejected' } : r
-                          ));
-                          toast({ title: '❌ Заявка отклонена' });
-                        }}
+                        onClick={() => handleRejectRequest(request.id)}
                       >
                         <Icon name="X" size={16} />
                       </Button>
@@ -331,11 +401,13 @@ const Index = () => {
     );
   }
 
+  const userRequests = requests.filter(r => r.userName === currentUser?.fullName);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/20">
       <nav className="border-b border-white/10 glass sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-heading font-bold gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-2xl font-heading font-bold text-white" style={{ textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000' }}>
             ZOV BANK
           </h1>
           <Button onClick={handleLogout} variant="ghost" size="sm">
@@ -347,37 +419,37 @@ const Index = () => {
 
       <div className="max-w-7xl mx-auto p-4">
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8 glass">
-            <TabsTrigger value="home">
-              <Icon name="Home" size={18} className="mr-2" />
-              Главная
+          <TabsList className="grid w-full grid-cols-6 mb-8 glass gap-1">
+            <TabsTrigger value="home" className="text-xs sm:text-sm">
+              <Icon name="Home" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">Главная</span>
             </TabsTrigger>
-            <TabsTrigger value="profile">
-              <Icon name="User" size={18} className="mr-2" />
-              Кабинет
+            <TabsTrigger value="profile" className="text-xs sm:text-sm">
+              <Icon name="User" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">Кабинет</span>
             </TabsTrigger>
-            <TabsTrigger value="casino">
-              <Icon name="Gamepad2" size={18} className="mr-2" />
-              Казино
+            <TabsTrigger value="casino" className="text-xs sm:text-sm">
+              <Icon name="Gamepad2" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">Казино</span>
             </TabsTrigger>
-            <TabsTrigger value="history">
-              <Icon name="History" size={18} className="mr-2" />
-              История
+            <TabsTrigger value="history" className="text-xs sm:text-sm">
+              <Icon name="History" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">История</span>
             </TabsTrigger>
-            <TabsTrigger value="requests">
-              <Icon name="FileText" size={18} className="mr-2" />
-              Заявки
+            <TabsTrigger value="requests" className="text-xs sm:text-sm">
+              <Icon name="FileText" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">Заявки</span>
             </TabsTrigger>
-            <TabsTrigger value="rules">
-              <Icon name="BookOpen" size={18} className="mr-2" />
-              Правила
+            <TabsTrigger value="rules" className="text-xs sm:text-sm">
+              <Icon name="BookOpen" size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">Правила</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="home" className="space-y-6 animate-fade-in">
             <Card className="glass p-8 text-center border-white/10">
               <p className="text-sm text-muted-foreground mb-2">Ваш баланс</p>
-              <h2 className="text-5xl font-heading font-bold mb-4 gradient-primary bg-clip-text text-transparent">
+              <h2 className="text-5xl font-heading font-bold mb-4 text-white" style={{ textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, -2px 0 0 #000, 2px 0 0 #000, 0 -2px 0 #000, 0 2px 0 #000' }}>
                 {currentUser?.balance.toLocaleString()}₽
               </h2>
               <p className="text-muted-foreground">Добро пожаловать, {currentUser?.fullName}!</p>
@@ -408,24 +480,6 @@ const Index = () => {
                 </div>
               </Card>
             </div>
-
-            <Card className="glass p-6 border-white/10">
-              <h3 className="text-xl font-heading font-bold mb-4">Статистика</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-400">+2,500₽</p>
-                  <p className="text-sm text-muted-foreground">Пополнено</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-red-400">-1,200₽</p>
-                  <p className="text-sm text-muted-foreground">Выведено</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">15</p>
-                  <p className="text-sm text-muted-foreground">Операций</p>
-                </div>
-              </div>
-            </Card>
           </TabsContent>
 
           <TabsContent value="profile" className="animate-fade-in">
@@ -450,36 +504,42 @@ const Index = () => {
 
           <TabsContent value="casino" className="animate-fade-in">
             <div className="grid gap-6 md:grid-cols-3">
-              <Card className="glass p-6 hover:scale-105 transition-transform cursor-pointer border-white/10 animate-pulse-glow">
+              <Card className="glass p-6 hover:scale-105 transition-transform cursor-pointer border-white/10">
                 <div className="text-center">
                   <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-black flex items-center justify-center mb-4">
                     <Icon name="CircleDot" className="text-white" size={32} />
                   </div>
                   <h3 className="text-xl font-heading font-bold mb-2">Рулетка</h3>
                   <p className="text-sm text-muted-foreground mb-4">Шанс выигрыша: 45%</p>
-                  <Button className="w-full gradient-primary">Играть</Button>
+                  <Button className="w-full gradient-primary" onClick={() => toast({ title: '🎰 В разработке', description: 'Скоро будет доступно' })}>
+                    Играть
+                  </Button>
                 </div>
               </Card>
 
-              <Card className="glass p-6 hover:scale-105 transition-transform cursor-pointer border-white/10 animate-pulse-glow">
+              <Card className="glass p-6 hover:scale-105 transition-transform cursor-pointer border-white/10">
                 <div className="text-center">
                   <div className="mx-auto w-16 h-16 rounded-full bg-gradient-accent flex items-center justify-center mb-4">
                     <Icon name="Plane" className="text-white" size={32} />
                   </div>
                   <h3 className="text-xl font-heading font-bold mb-2">Crash</h3>
                   <p className="text-sm text-muted-foreground mb-4">Самолёт может упасть в любой момент</p>
-                  <Button className="w-full gradient-accent">Играть</Button>
+                  <Button className="w-full gradient-accent" onClick={() => toast({ title: '🎰 В разработке', description: 'Скоро будет доступно' })}>
+                    Играть
+                  </Button>
                 </div>
               </Card>
 
-              <Card className="glass p-6 hover:scale-105 transition-transform cursor-pointer border-white/10 animate-pulse-glow">
+              <Card className="glass p-6 hover:scale-105 transition-transform cursor-pointer border-white/10">
                 <div className="text-center">
                   <div className="mx-auto w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
                     <Icon name="Bomb" className="text-white" size={32} />
                   </div>
                   <h3 className="text-xl font-heading font-bold mb-2">Мины</h3>
                   <p className="text-sm text-muted-foreground mb-4">Избегай мин и забирай выигрыш</p>
-                  <Button className="w-full bg-secondary hover:bg-secondary/90">Играть</Button>
+                  <Button className="w-full bg-secondary hover:bg-secondary/90" onClick={() => toast({ title: '🎰 В разработке', description: 'Скоро будет доступно' })}>
+                    Играть
+                  </Button>
                 </div>
               </Card>
             </div>
@@ -489,27 +549,23 @@ const Index = () => {
             <Card className="glass p-6 border-white/10">
               <h2 className="text-2xl font-heading font-bold mb-6">История операций</h2>
               <div className="space-y-3">
-                <div className="flex justify-between items-center p-4 bg-muted/10 rounded-lg border border-white/5">
-                  <div>
-                    <p className="font-semibold">Пополнение</p>
-                    <p className="text-sm text-muted-foreground">15.10.2025, 14:30</p>
-                  </div>
-                  <p className="text-green-400 font-bold">+1,000₽</p>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-muted/10 rounded-lg border border-white/5">
-                  <div>
-                    <p className="font-semibold">Рулетка - Выигрыш</p>
-                    <p className="text-sm text-muted-foreground">14.10.2025, 18:15</p>
-                  </div>
-                  <p className="text-green-400 font-bold">+500₽</p>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-muted/10 rounded-lg border border-white/5">
-                  <div>
-                    <p className="font-semibold">Вывод средств</p>
-                    <p className="text-sm text-muted-foreground">13.10.2025, 10:00</p>
-                  </div>
-                  <p className="text-red-400 font-bold">-200₽</p>
-                </div>
+                {requests.filter(r => r.userName === currentUser?.fullName && r.status === 'approved').length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Нет завершённых операций</p>
+                ) : (
+                  requests
+                    .filter(r => r.userName === currentUser?.fullName && r.status === 'approved')
+                    .map((req) => (
+                      <div key={req.id} className="flex justify-between items-center p-4 bg-muted/10 rounded-lg border border-white/5">
+                        <div>
+                          <p className="font-semibold">{req.type === 'deposit' ? 'Пополнение' : 'Вывод средств'}</p>
+                          <p className="text-sm text-muted-foreground">Одобрено</p>
+                        </div>
+                        <p className={`font-bold ${req.type === 'deposit' ? 'text-green-400' : 'text-red-400'}`}>
+                          {req.type === 'deposit' ? '+' : '-'}{req.amount.toLocaleString()}₽
+                        </p>
+                      </div>
+                    ))
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -521,9 +577,15 @@ const Index = () => {
                 <div className="space-y-4">
                   <div>
                     <Label>Сумма</Label>
-                    <Input type="number" placeholder="1000" className="mt-1" />
+                    <Input 
+                      type="number" 
+                      placeholder="1000" 
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      className="mt-1" 
+                    />
                   </div>
-                  <Button className="w-full gradient-primary">
+                  <Button onClick={handleDepositRequest} className="w-full gradient-primary">
                     Создать заявку на пополнение
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
@@ -537,9 +599,15 @@ const Index = () => {
                 <div className="space-y-4">
                   <div>
                     <Label>Сумма</Label>
-                    <Input type="number" placeholder="500" className="mt-1" />
+                    <Input 
+                      type="number" 
+                      placeholder="500" 
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      className="mt-1" 
+                    />
                   </div>
-                  <Button className="w-full bg-destructive hover:bg-destructive/90">
+                  <Button onClick={handleWithdrawRequest} className="w-full bg-destructive hover:bg-destructive/90">
                     Создать заявку на вывод
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
@@ -551,17 +619,23 @@ const Index = () => {
 
             <Card className="glass p-6 mt-6 border-white/10">
               <h3 className="text-xl font-heading font-bold mb-4">Мои активные заявки</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-4 bg-muted/10 rounded-lg border border-white/5">
-                  <div>
-                    <p className="font-semibold">Пополнение</p>
-                    <p className="text-sm text-muted-foreground">+1,000₽</p>
-                  </div>
-                  <span className="px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-full text-sm">
-                    На рассмотрении
-                  </span>
+              {userRequests.filter(r => r.status === 'pending').length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Нет активных заявок</p>
+              ) : (
+                <div className="space-y-3">
+                  {userRequests.filter(r => r.status === 'pending').map((req) => (
+                    <div key={req.id} className="flex justify-between items-center p-4 bg-muted/10 rounded-lg border border-white/5">
+                      <div>
+                        <p className="font-semibold">{req.type === 'deposit' ? 'Пополнение' : 'Вывод'}</p>
+                        <p className="text-sm text-muted-foreground">{req.type === 'deposit' ? '+' : '-'}{req.amount.toLocaleString()}₽</p>
+                      </div>
+                      <span className="px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-full text-sm">
+                        На рассмотрении
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </Card>
           </TabsContent>
 
@@ -572,7 +646,7 @@ const Index = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-foreground mb-2">💰 Общие правила</h3>
                   <ul className="list-disc list-inside space-y-1">
-                    <li>School Bank — это внутренняя валюта школы</li>
+                    <li>ZOV BANK — это внутренняя валюта школы</li>
                     <li>Регистрация доступна всем ученикам</li>
                     <li>Храните PIN-код в секрете</li>
                   </ul>
