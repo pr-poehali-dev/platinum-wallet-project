@@ -35,6 +35,7 @@ interface StudentDashboardProps {
   handleDepositRequest: () => void;
   handleWithdrawRequest: () => void;
   handleLogout: () => void;
+  onBalanceChange: (newBalance: number) => void;
   toast: any;
 }
 
@@ -50,6 +51,7 @@ const StudentDashboard = ({
   handleDepositRequest,
   handleWithdrawRequest,
   handleLogout,
+  onBalanceChange,
   toast
 }: StudentDashboardProps) => {
   const userRequests = requests.filter(r => r.userName === currentUser?.fullName);
@@ -106,7 +108,7 @@ const StudentDashboard = ({
           </TabsContent>
 
           <TabsContent value="casino">
-            <CasinoTab toast={toast} />
+            <CasinoTab currentUser={currentUser} onBalanceChange={onBalanceChange} toast={toast} />
           </TabsContent>
 
           <TabsContent value="history">

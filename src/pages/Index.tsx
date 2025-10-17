@@ -33,15 +33,30 @@ const Index = () => {
   const [registerPin, setRegisterPin] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
 
-  const [users, setUsers] = useState<User[]>([
-    { fullName: 'Иван Петров', pin: '1234', balance: 5000, role: 'student' },
-    { fullName: 'Мария Сидорова', pin: '4321', balance: 3500, role: 'student' },
-  ]);
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('zovbank_users');
+    return saved ? JSON.parse(saved) : [
+      { fullName: 'Иван Петров', pin: '1234', balance: 5000, role: 'student' },
+      { fullName: 'Мария Сидорова', pin: '4321', balance: 3500, role: 'student' },
+    ];
+  });
 
-  const [requests, setRequests] = useState<Request[]>([]);
+  const [requests, setRequests] = useState<Request[]>(() => {
+    const saved = localStorage.getItem('zovbank_requests');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
   const [bonusAmount, setBonusAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  useEffect(() => {
+    localStorage.setItem('zovbank_users', JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem('zovbank_requests', JSON.stringify(requests));
+  }, [requests]);
 
   useEffect(() => {
     if (currentUser && currentUser.role === 'student') {
@@ -181,6 +196,13 @@ const Index = () => {
     toast({ title: '❌ Заявка отклонена' });
   };
 
+  const handleBalanceChange = (newBalance: number) => {
+    if (!currentUser) return;
+    setUsers(prev => prev.map(u => 
+      u.fullName === currentUser.fullName ? { ...u, balance: newBalance } : u
+    ));
+  };
+
   if (!isLoggedIn) {
     return (
       <AuthScreen
@@ -229,6 +251,7 @@ const Index = () => {
       handleDepositRequest={handleDepositRequest}
       handleWithdrawRequest={handleWithdrawRequest}
       handleLogout={handleLogout}
+      onBalanceChange={handleBalanceChange}
       toast={toast}
     />
   );
