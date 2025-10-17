@@ -85,9 +85,9 @@ const Index = () => {
           <div className="p-8">
             <div className="text-center mb-8">
               <h1 className="text-4xl font-heading font-bold mb-2 gradient-primary bg-clip-text text-transparent">
-                School Bank
+                ZOV BANK
               </h1>
-              <p className="text-muted-foreground">Цифровая валюта школы</p>
+              <p className="text-muted-foreground">Зовская валюта</p>
             </div>
 
             <Tabs defaultValue="login" className="w-full">
@@ -270,7 +270,7 @@ const Index = () => {
       <nav className="border-b border-white/10 glass sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-heading font-bold gradient-primary bg-clip-text text-transparent">
-            School Bank
+            ZOV BANK
           </h1>
           <Button onClick={handleLogout} variant="ghost" size="sm">
             <Icon name="LogOut" className="mr-2" size={18} />
