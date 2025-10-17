@@ -14,6 +14,14 @@ interface User {
   role: 'student' | 'staff';
 }
 
+interface Request {
+  id: string;
+  userName: string;
+  type: 'deposit' | 'withdraw';
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 const STAFF_PASSWORD = 'admin123';
 
 const Index = () => {
@@ -32,6 +40,11 @@ const Index = () => {
     { fullName: 'Иван Петров', pin: '1234', balance: 5000, role: 'student' },
     { fullName: 'Мария Сидорова', pin: '4321', balance: 3500, role: 'student' },
   ]);
+
+  const [requests, setRequests] = useState<Request[]>([]);
+
+  const totalBalance = users.reduce((sum, user) => sum + user.balance, 0);
+  const activeRequests = requests.filter(r => r.status === 'pending');
 
   const handleLogin = () => {
     const user = users.find(u => u.fullName === loginFullName && u.pin === loginPin);
@@ -195,7 +208,7 @@ const Index = () => {
                   <Icon name="Users" className="text-primary" size={24} />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Всего учеников</p>
+                  <p className="text-sm text-muted-foreground">Всего участников</p>
                   <p className="text-2xl font-bold">{users.length}</p>
                 </div>
               </div>
@@ -208,7 +221,7 @@ const Index = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Активные заявки</p>
-                  <p className="text-2xl font-bold">3</p>
+                  <p className="text-2xl font-bold">{activeRequests.length}</p>
                 </div>
               </div>
             </Card>
@@ -220,7 +233,7 @@ const Index = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Всего в обороте</p>
-                  <p className="text-2xl font-bold">8 500₽</p>
+                  <p className="text-2xl font-bold">{totalBalance.toLocaleString()}₽</p>
                 </div>
               </div>
             </Card>
@@ -228,37 +241,48 @@ const Index = () => {
 
           <Card className="glass p-6">
             <h2 className="text-xl font-heading font-bold mb-4">Заявки на обработку</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-white/5">
-                <div>
-                  <p className="font-semibold">Иван Петров</p>
-                  <p className="text-sm text-muted-foreground">Пополнение: +1000₽</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                    <Icon name="Check" size={16} />
-                  </Button>
-                  <Button size="sm" variant="destructive">
-                    <Icon name="X" size={16} />
-                  </Button>
-                </div>
+            {activeRequests.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Нет активных заявок</p>
+            ) : (
+              <div className="space-y-4">
+                {activeRequests.map((request) => (
+                  <div key={request.id} className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-white/5">
+                    <div>
+                      <p className="font-semibold">{request.userName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {request.type === 'deposit' ? 'Пополнение' : 'Вывод'}: {request.type === 'deposit' ? '+' : '-'}{request.amount.toLocaleString()}₽
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => {
+                          setRequests(prev => prev.map(r => 
+                            r.id === request.id ? { ...r, status: 'approved' } : r
+                          ));
+                          toast({ title: '✅ Заявка одобрена' });
+                        }}
+                      >
+                        <Icon name="Check" size={16} />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => {
+                          setRequests(prev => prev.map(r => 
+                            r.id === request.id ? { ...r, status: 'rejected' } : r
+                          ));
+                          toast({ title: '❌ Заявка отклонена' });
+                        }}
+                      >
+                        <Icon name="X" size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-white/5">
-                <div>
-                  <p className="font-semibold">Мария Сидорова</p>
-                  <p className="text-sm text-muted-foreground">Вывод: -500₽</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                    <Icon name="Check" size={16} />
-                  </Button>
-                  <Button size="sm" variant="destructive">
-                    <Icon name="X" size={16} />
-                  </Button>
-                </div>
-              </div>
-            </div>
+            )}
           </Card>
         </div>
       </div>
