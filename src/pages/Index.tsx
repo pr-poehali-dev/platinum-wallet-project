@@ -84,7 +84,7 @@ const Index = () => {
         <Card className="w-full max-w-md glass border-white/10 shadow-2xl animate-scale-in relative z-10">
           <div className="p-8">
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-heading font-bold mb-2 gradient-primary bg-clip-text text-transparent">
+              <h1 className="text-4xl font-heading font-bold mb-2 text-white" style={{ textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, -2px 0 0 #000, 2px 0 0 #000, 0 -2px 0 #000, 0 2px 0 #000' }}>
                 ZOV BANK
               </h1>
               <p className="text-muted-foreground">Зовская валюта</p>
